@@ -10,7 +10,6 @@ BLUE="\033[36m"     # Info message
 PLAIN='\033[0m'
 
 V6_PROXY=""
-# curl 参数：-s静默模式，-L允许重定向
 IP=`curl -sL -4 ip.sb`
 if [[ "$?" != "0" ]]; then
     IP=`curl -sL -6 ip.sb`

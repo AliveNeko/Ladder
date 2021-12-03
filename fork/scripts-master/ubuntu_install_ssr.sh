@@ -1,5 +1,5 @@
 #!/bin/bash
-# shadowsocksR/SSR CentOS 7/8一键安装教程
+# shadowsocksR/SSR Ubuntu一键安装教程
 # Author: hijk<https://hijk.art>
 
 
@@ -10,7 +10,6 @@ BLUE="\033[36m"     # Info message
 PLAIN='\033[0m'
 
 V6_PROXY=""
-# curl 参数：-s静默模式，-L允许重定向
 IP=`curl -sL -4 ip.sb`
 if [[ "$?" != "0" ]]; then
     IP=`curl -sL -6 ip.sb`
@@ -20,7 +19,6 @@ fi
 FILENAME="ShadowsocksR-v3.2.2"
 URL="${V6_PROXY}https://github.com/shadowsocksrr/shadowsocksr/archive/3.2.2.tar.gz"
 BASE=`pwd`
-
 OS=`hostnamectl | grep -i system | cut -d: -f2`
 
 CONFIG_FILE="/etc/shadowsocksR.json"
@@ -29,7 +27,6 @@ colorEcho() {
     echo -e "${1}${@:2}${PLAIN}"
 }
 
-
 checkSystem() {
     result=$(id | awk '{print $1}')
     if [ $result != "uid=0(root)" ]; then
@@ -37,26 +34,27 @@ checkSystem() {
         exit 1
     fi
 
-    if [ ! -f /etc/centos-release ];then
-        res=`which yum`
+    res=`lsb_release -d | grep -i ubuntu`
+    if [ "$?" != "0" ]; then
+        res=`which apt`
         if [ "$?" != "0" ]; then
-            colorEcho $RED " 系统不是CentOS"
+            colorEcho $RED " 系统不是Ubuntu"
             exit 1
-         fi
+        fi
     else
-        result=`cat /etc/centos-release|grep -oE "[0-9.]+"`
+        result=`lsb_release -d | grep -oE "[0-9.]+"`
         main=${result%%.*}
-        if [ $main -lt 7 ]; then
-            colorEcho $RED " 不受支持的CentOS版本"
+        if [ $main -lt 16 ]; then
+            colorEcho $RED " 不受支持的Ubuntu版本"
             exit 1
-         fi
-    fi
+        fi
+     fi
 }
 
 slogon() {
     clear
     echo "#############################################################"
-    echo -e "#         ${RED}CentOS 7/8 ShadowsocksR/SSR 一键安装脚本${PLAIN}           #"
+    echo -e "#          ${RED}Ubuntu LTS ShadowsocksR/SSR 一键安装脚本${PLAIN}          #"
     echo -e "# ${GREEN}作者${PLAIN}: 网络跳越(hijk)                                      #"
     echo -e "# ${GREEN}网址${PLAIN}: https://hijk.art                                    #"
     echo -e "# ${GREEN}论坛${PLAIN}: https://hijk.club                                   #"
@@ -92,25 +90,23 @@ getData() {
                 colorEcho $RED " 输入错误，端口号为1-65535的数字"
             fi
         else
-            colorEcho $RED " 输入错误，端口号为1-65535的数字"
+            colorEcho $RED "输入错误，端口号为1-65535的数字"
         fi
     done
-
-
     colorEcho $BLUE " 请选择SSR的加密方式:" 
-    echo "  1)aes-256-cfb"
-    echo "  2)aes-192-cfb"
-    echo "  3)aes-128-cfb"
-    echo "  4)aes-256-ctr"
-    echo "  5)aes-192-ctr"
-    echo "  6)aes-128-ctr"
-    echo "  7)aes-256-cfb8"
-    echo "  8)aes-192-cfb8"
-    echo "  9)aes-128-cfb8"
-    echo "  10)camellia-128-cfb"
-    echo "  11)camellia-192-cfb"
-    echo "  12)camellia-256-cfb"
-    echo "  13)chacha20-ietf"
+    echo "   1)aes-256-cfb"
+    echo "   2)aes-192-cfb"
+    echo "   3)aes-128-cfb"
+    echo "   4)aes-256-ctr"
+    echo "   5)aes-192-ctr"
+    echo "   6)aes-128-ctr"
+    echo "   7)aes-256-cfb8"
+    echo "   8)aes-192-cfb8"
+    echo "   9)aes-128-cfb8"
+    echo "   10)camellia-128-cfb"
+    echo "   11)camellia-192-cfb"
+    echo "   12)camellia-256-cfb"
+    echo "   13)chacha20-ietf"
     read -p " 请选择加密方式（默认aes-256-cfb）" answer
     if [ -z "$answer" ]; then
         METHOD="aes-256-cfb"
@@ -176,7 +172,7 @@ getData() {
     echo "   9)auth_chain_d"
     echo "   10)auth_chain_e"
     echo "   11)auth_chain_f"
-    read -p " 请选择SSR协议（默认origin）" answer
+    read -p " 请选择协议（默认origin）" answer
     if [ -z "$answer" ]; then
         PROTOCOL="origin"
     else
@@ -215,12 +211,12 @@ getData() {
             PROTOCOL="auth_chain_f"
             ;;
         *)
-            colorEcho $RED " 无效的选择，使用默认协议"
+            colorEcho $RED "无效的选择，使用默认协议"
             PROTOCOL="origin"
         esac
     fi
     echo ""
-    colorEcho $BLUE " SSR协议： $PROTOCOL"
+    colorEcho $BLUE "协议： $PROTOCOL"
     echo ""
 
 
@@ -251,47 +247,46 @@ getData() {
             OBFS="tls1.2_ticket_fastauth"
             ;;
         *)
-            colorEcho $RED " 无效的选择，使用默认混淆模式"
+            echo "无效的选择，使用默认混淆模式"
             OBFS="plain"
         esac
     fi
     echo ""
-    colorEcho $BLUE " 混淆模式： $OBFS"
+    colorEcho $BLUE "混淆模式： $OBFS"
     echo ""
 }
 
 preinstall() {
-    colorEcho $BLUE " 更新系统..."
-    yum clean all
-    #yum update -y
-    colorEcho $BLUE " 安装必要软件"
-    yum install -y epel-release telnet curl wget vim net-tools libsodium openssl unzip tar qrencode
-    res=`which wget`
-    [ "$?" != "0" ] && yum install -y wget
-    res=`which netstat`
-    [ "$?" != "0" ] && yum install -y net-tools
-    if [ $main -eq 8 ]; then
-        ln -s /usr/bin/python3 /usr/bin/python
-    fi
+    colorEcho $BLUE " 更新系统"
+    auto clean all
+    apt update
+    #apt upgrade -y
 
-    if [ -s /etc/selinux/config ] && grep 'SELINUX=enforcing' /etc/selinux/config; then
-        sed -i 's/SELINUX=enforcing/SELINUX=permissive/g' /etc/selinux/config
-        setenforce 0
+    colorEcho $BLUE " 安装必要软件"
+    apt install -y telnet curl wget vim net-tools libsodium18 openssl unzip qrencode
+    res=`which wget`
+    [ "$?" != "0" ] && apt install -y wget
+    res=`which netstat`
+    [ "$?" != "0" ] && apt install -y net-tools
+    apt autoremove -y
+    res=`which python`
+    if [ "$?" != "0" ]; then
+        ln -s /usr/bin/python3 /usr/bin/python
     fi
 }
 
 installSSR() {
     if [ ! -d /usr/local/shadowsocks ]; then
-        echo 下载安装文件
+        colorEcho $BLUE  " 下载安装文件"
         if ! wget --no-check-certificate -O ${FILENAME}.tar.gz ${URL}; then
-            echo -e " [${RED}Error${PLAIN}] 下载文件失败!"
+            echo -e "[${RED}Error${PLAIN}] 下载文件失败!"
             exit 1
         fi
 
         tar -zxf ${FILENAME}.tar.gz
         mv shadowsocksr-3.2.2/shadowsocks /usr/local
         if [ ! -f /usr/local/shadowsocks/server.py ]; then
-            colorEcho $RED " $OS 安装失败，请到 https://hijk.art 网站反馈"
+            colorEcho $RED " $OS 安装SSR失败，请到 https://hijk.art 网站反馈"
             cd ${BASE} && rm -rf shadowsocksr-3.2.2 ${FILENAME}.tar.gz
             exit 1
         fi
@@ -318,7 +313,7 @@ installSSR() {
 }
 EOF
 
-cat > /usr/lib/systemd/system/shadowsocksR.service <<-EOF
+cat > /lib/systemd/system/shadowsocksR.service <<-EOF
 [Unit]
 Description=shadowsocksR
 Documentation=https://hijk.art/
@@ -341,42 +336,34 @@ EOF
     sleep 3
     res=`netstat -nltp | grep ${PORT} | grep python`
     if [ "${res}" = "" ]; then
-        colorEcho $RED " ssr启动失败，请检查端口是否被占用！"
+        colorEcho $RED " $OS ssr启动失败，请检查端口是否被占用！"
         exit 1
     fi
 }
 
 setFirewall() {
-    systemctl status firewalld > /dev/null 2>&1
-    if [[ $? -eq 0 ]];then
-        firewall-cmd --permanent --add-service=http
-        firewall-cmd --permanent --add-port=${PORT}/tcp
-        firewall-cmd --permanent --add-port=${PORT}/udp
-        firewall-cmd --reload
-    else
-        nl=`iptables -nL | nl | grep FORWARD | awk '{print $1}'`
-        if [[ "$nl" != "3" ]]; then
-            iptables -I INPUT -p tcp --dport 80 -j ACCEPT
-            iptables -I INPUT -p tcp --dport ${PORT} -j ACCEPT
-            iptables -I INPUT -p udp --dport ${PORT} -j ACCEPT
-        fi
+    res=`ufw status | grep -i inactive`
+    if [ "$res" = "" ];then
+        ufw allow ${PORT}/tcp
+        ufw allow ${PORT}/udp
     fi
 }
 
 installBBR() {
     result=$(lsmod | grep bbr)
     if [ "$result" != "" ]; then
-        colorEcho $GREEN " BBR模块已安装"
+        colorEcho $BLUE " BBR模块已安装"
         INSTALL_BBR=false
         return
     fi
+
     res=`hostnamectl | grep -i openvz`
     if [ "$res" != "" ]; then
         colorEcho $YELLOW " openvz机器，跳过安装"
         INSTALL_BBR=false
         return
     fi
-    
+
     echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
     echo "net.ipv4.tcp_congestion_control=bbr" >> /etc/sysctl.conf
     sysctl -p
@@ -388,13 +375,10 @@ installBBR() {
     fi
 
     colorEcho $BLUE " 安装BBR模块..."
-    rpm --import https://www.elrepo.org/RPM-GPG-KEY-elrepo.org
-    rpm -Uvh http://www.elrepo.org/elrepo-release-7.0-4.el7.elrepo.noarch.rpm
-    yum --enablerepo=elrepo-kernel install kernel-ml -y
-    yum remove kernel-3.* -y
-    grub2-set-default 0
+    apt install -y --install-recommends linux-generic-hwe-16.04
+    grub-set-default 0
     echo "tcp_bbr" >> /etc/modules-load.d/modules.conf
-    INSTALL_BBR=true
+    INSTALL_BBR=false
 }
 
 info() {
@@ -412,14 +396,13 @@ info() {
     res=`echo -n ${res} | tr -d =`
     link="ssr://${res}"
 
-    echo ""
     echo ============================================
     echo -e " ${BLUE}ssr运行状态：${PLAIN}${status}"
     echo -e " ${BLUE}ssr配置文件：${PLAIN}${RED}$CONFIG_FILE${PLAIN}"
     echo ""
     echo -e " ${RED}ssr配置信息：${PLAIN}"
-    echo -e "   ${BLUE}IP(address):${PLAIN}  ${RED}${IP}${PLAIN}"
-    echo -e "   ${BLUE}端口(port)：${PLAIN}${RED}${port}${PLAIN}"
+    echo -e "   ${BLUE}IP(address): ${PLAIN} ${RED}${IP}${PLAIN}"
+    echo -e "   ${BLUE}端口(port)${PLAIN}：${RED}${port}${PLAIN}"
     echo -e "   ${BLUE}密码(password)：${PLAIN}${RED}${password}${PLAIN}"
     echo -e "   ${BLUE}加密方式(method)：${PLAIN} ${RED}${method}${PLAIN}"
     echo -e "   ${BLUE}协议(protocol)：${PLAIN} ${RED}${protocol}${PLAIN}"
@@ -430,9 +413,9 @@ info() {
 }
 
 bbrReboot() {
-    if [ "${INSTALL_BBR}" == "true" ]; then
+    if [ "${INSTALL_BBR}" == "false" ]; then
         echo  
-        echo  为使BBR模块生效，系统将在30秒后重启
+        colorEcho $BLUE  " 为使BBR模块生效，系统将在30秒后重启"
         echo  
         echo -e " 您可以按 ctrl + c 取消重启，稍后输入 ${RED}reboot${PLAIN} 重启系统"
         sleep 30
@@ -442,8 +425,9 @@ bbrReboot() {
 
 
 install() {
-    echo -n "系统版本:  "
-    cat /etc/centos-release
+    echo -n " 系统版本:  "
+    lsb_release -a
+
     checkSystem
     getData
     preinstall
@@ -457,7 +441,6 @@ install() {
 }
 
 uninstall() {
-    echo ""
     read -p " 确定卸载SSR吗？(y/n)" answer
     [ -z ${answer} ] && answer="n"
 
@@ -465,7 +448,7 @@ uninstall() {
         rm -f $CONFIG_FILE
         rm -f /var/log/shadowsocks.log
         rm -rf /usr/local/shadowsocks
-        systemctl disable shadowsocksR && systemctl stop shadowsocksR && rm -rf /usr/lib/systemd/system/shadowsocksR.service
+        systemctl disable shadowsocksR && systemctl stop shadowsocksR && rm -rf /lib/systemd/system/shadowsocksR.service
     fi
     echo -e " ${RED}卸载成功${PLAIN}"
 }
@@ -480,6 +463,6 @@ case "$action" in
         ;;
     *)
         echo " 参数错误"
-        echo " 用法: `basename $0` [install|uninstall]"
+        echo " 用法: `basename $0` [install|uninstall|info]"
         ;;
 esac
